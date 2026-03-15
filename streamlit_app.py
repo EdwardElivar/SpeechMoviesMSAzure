@@ -286,7 +286,7 @@ def mostrar_resultados(resultados, titulo_seccion):
         st.info("No se encontraron películas.")
         return
 
-    cols = st.columns(5)
+    cols = st.columns(2)
 
     for i, pelicula in enumerate(resultados):
         titulo = pelicula.get("title", "Sin título")
@@ -295,7 +295,7 @@ def mostrar_resultados(resultados, titulo_seccion):
         overview = pelicula.get("overview", "Sin sinopsis.")
         poster_path = pelicula.get("poster_path")
 
-        with cols[i % 5]:
+        with cols[i % 2]:
             if poster_path:
                 poster_url = f"{IMAGE_BASE_URL}{poster_path}"
                 st.image(poster_url, use_container_width=True)
@@ -356,7 +356,7 @@ def procesar_consulta(frase_usuario, mapa_generos, mapa_generos_normalizado, hab
 # APP
 # ==========================================
 st.set_page_config(page_title="SpeechMovies con TMDb + Azure Speech", layout="wide")
-st.title("⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐ SpeechMovies con MS AZURE ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐")
+st.title("⭐⭐ SpeechMovies con MS AZURE ⭐⭐")
 st.write("Bienvenido al sistema de búsqueda de películas usando la API de Microsoft Azure Speech Service")
 st.write(" ")
 st.write(" ")
@@ -367,6 +367,18 @@ st.write("🟢 Busca películas de dragon ball")
 st.write("🟢 Quiero ver películas románticas")
 st.write(" ")
 st.write(" ")
+
+if "saludo_reproducido" not in st.session_state:
+    st.session_state.saludo_reproducido = False
+
+if not st.session_state.saludo_reproducido:
+    try:
+        saludo = "Hola Paul, ¿qué película quieres buscar hoy?"
+        audio_saludo = hablar_texto(saludo)
+        st.audio(audio_saludo, format="audio/wav", autoplay=True)
+        st.session_state.saludo_reproducido = True
+    except Exception as e:
+        st.warning(f"No se pudo reproducir el saludo inicial: {e}")
 
 if not TMDB_API_KEY or TMDB_API_KEY == "TU_TMDB_API_KEY_AQUI":
     st.warning("Coloca tu API key de TMDb.")
