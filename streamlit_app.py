@@ -357,7 +357,7 @@ def procesar_consulta(frase_usuario, mapa_generos, mapa_generos_normalizado, hab
 # APP
 # ==========================================
 st.set_page_config(page_title="SpeechMovies con TMDb + Azure Speech", layout="wide")
-st.title("⭐⭐ SpeechMovies con MS AZURE ⭐⭐")
+st.title("⭐ SpeechMovies ⭐")
 st.write("Bienvenido al sistema de búsqueda de películas usando la API de Microsoft Azure Speech Service")
 st.write(" ")
 st.write(" ")
@@ -384,73 +384,52 @@ mapa_generos_normalizado = {
     normalizar_texto(nombre): nombre for nombre in mapa_generos.keys()
 }
 
-modo = st.radio("Modo de entrada", ["", "Micrófono"], horizontal=True)
 activar_respuesta_hablada = st.checkbox("Activar respuesta hablada", value=True)
 
-if modo == "Texto":
-    frase_usuario = st.text_input(
-        "Escribe tu solicitud",
-        placeholder="Ejemplo: busca películas de terror"
-    )
+if not AZURE_SPEECH_KEY or AZURE_SPEECH_KEY == "TU_AZURE_SPEECH_KEY_AQUI":
+    st.warning("Coloca tu Azure Speech key.")
+    st.stop()
 
-    if st.button("Buscar por texto"):
-        if not frase_usuario.strip():
-            st.warning("Escribe una frase.")
-        else:
-            try:
+if not AZURE_SPEECH_REGION or AZURE_SPEECH_REGION == "TU_AZURE_SPEECH_REGION_AQUI":
+    st.warning("Coloca tu Azure Speech region.")
+    st.stop()
+
+audio_usuario = st.audio_input(
+    "🎤 Habla para buscar películas",
+    sample_rate=16000
+)
+
+if audio_usuario is not None:
+    st.audio(audio_usuario)
+
+    if st.button("Procesar audio con Azure"):
+        temp_path = None
+
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
+                tmp_file.write(audio_usuario.read())
+                temp_path = tmp_file.name
+
+            texto_reconocido = reconocer_voz_desde_archivo_wav(temp_path)
+
+            if texto_reconocido:
+                st.success(f"Texto reconocido: {texto_reconocido}")
                 procesar_consulta(
-                    frase_usuario,
+                    texto_reconocido,
                     mapa_generos,
                     mapa_generos_normalizado,
                     hablar=activar_respuesta_hablada
                 )
-            except Exception as e:
-                st.error(f"Ocurrió un error: {e}")
+            else:
+                st.warning("No pude reconocer voz. Intenta grabar de nuevo.")
 
-else:
+        except Exception as e:
+            st.error(f"Error con Azure Speech: {e}")
 
-    if not AZURE_SPEECH_KEY or AZURE_SPEECH_KEY == "TU_AZURE_SPEECH_KEY_AQUI":
-        st.warning("Coloca tu Azure Speech key.")
-        st.stop()
+        finally:
+            if temp_path and os.path.exists(temp_path):
+                os.remove(temp_path)
 
-    if not AZURE_SPEECH_REGION or AZURE_SPEECH_REGION == "TU_AZURE_SPEECH_REGION_AQUI":
-        st.warning("Coloca tu Azure Speech region.")
-        st.stop()
 
-    audio_usuario = st.audio_input(
-        "🎤 Graba tu búsqueda por voz",
-        sample_rate=16000
-    )
-
-    if audio_usuario is not None:
-        st.audio(audio_usuario)
-
-        if st.button("Procesar audio con Azure"):
-            temp_path = None
-
-            try:
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
-                    tmp_file.write(audio_usuario.read())
-                    temp_path = tmp_file.name
-
-                texto_reconocido = reconocer_voz_desde_archivo_wav(temp_path)
-
-                if texto_reconocido:
-                    st.success(f"Texto reconocido: {texto_reconocido}")
-                    procesar_consulta(
-                        texto_reconocido,
-                        mapa_generos,
-                        mapa_generos_normalizado,
-                        hablar=activar_respuesta_hablada
-                    )
-                else:
-                    st.warning("No pude reconocer voz. Intenta grabar de nuevo.")
-
-            except Exception as e:
-                st.error(f"Error con Azure Speech: {e}")
-
-            finally:
-                if temp_path and os.path.exists(temp_path):
-                    os.remove(temp_path)
 
 
