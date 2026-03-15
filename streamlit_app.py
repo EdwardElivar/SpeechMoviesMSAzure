@@ -362,10 +362,11 @@ st.write("Bienvenido al sistema de búsqueda de películas usando la API de Micr
 st.write(" ")
 st.write(" ")
 st.write("Instrucciones:")
-st.write("Para buscar una película puedes escribir o hablar frases como:")
+st.write("Para buscar una película puedes hablar frases como:")
 st.write("🟢 Busca películas de terror")
 st.write("🟢 Busca películas de dragon ball")
-st.write("🟢 Quiero ver películas románticas")
+st.write("🟢 Quiero ver películas de Terror")
+st.write("🟢 Toy Story")
 st.write(" ")
 st.write(" ")
 
