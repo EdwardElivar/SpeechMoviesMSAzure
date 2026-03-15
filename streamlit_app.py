@@ -286,7 +286,8 @@ def mostrar_resultados(resultados, titulo_seccion):
         st.info("No se encontraron películas.")
         return
 
-    cols = st.columns(2)
+    num_columnas = 3
+    cols = st.columns(num_columnas)
 
     for i, pelicula in enumerate(resultados):
         titulo = pelicula.get("title", "Sin título")
@@ -295,7 +296,7 @@ def mostrar_resultados(resultados, titulo_seccion):
         overview = pelicula.get("overview", "Sin sinopsis.")
         poster_path = pelicula.get("poster_path")
 
-        with cols[i % 2]:
+        with cols[i % num_columnas]:
             if poster_path:
                 poster_url = f"{IMAGE_BASE_URL}{poster_path}"
                 st.image(poster_url, use_container_width=True)
@@ -303,8 +304,8 @@ def mostrar_resultados(resultados, titulo_seccion):
                 st.write("Sin póster")
 
             st.markdown(f"**{titulo}**")
-            st.write(f"📅 {fecha}")
-            st.write(f"⭐ {rating}")
+            st.caption(f"📅 {fecha}")
+            st.caption(f"⭐ {rating}")
 
             with st.expander("Ver sinopsis"):
                 st.write(overview)
@@ -463,3 +464,4 @@ else:
             finally:
                 if temp_path and os.path.exists(temp_path):
                     os.remove(temp_path)
+
