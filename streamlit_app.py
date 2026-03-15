@@ -369,18 +369,6 @@ st.write("🟢 Quiero ver películas románticas")
 st.write(" ")
 st.write(" ")
 
-if "saludo_reproducido" not in st.session_state:
-    st.session_state.saludo_reproducido = False
-
-if not st.session_state.saludo_reproducido:
-    try:
-        saludo = "Hola Paul, ¿qué película quieres buscar hoy?"
-        audio_saludo = hablar_texto(saludo)
-        st.audio(audio_saludo, format="audio/wav", autoplay=True)
-        st.session_state.saludo_reproducido = True
-    except Exception as e:
-        st.warning(f"No se pudo reproducir el saludo inicial: {e}")
-
 if not TMDB_API_KEY or TMDB_API_KEY == "TU_TMDB_API_KEY_AQUI":
     st.warning("Coloca tu API key de TMDb.")
     st.stop()
@@ -396,7 +384,7 @@ mapa_generos_normalizado = {
     normalizar_texto(nombre): nombre for nombre in mapa_generos.keys()
 }
 
-modo = st.radio("Modo de entrada", ["Texto", "Micrófono"], horizontal=True)
+modo = st.radio("Modo de entrada", ["", "Micrófono"], horizontal=True)
 activar_respuesta_hablada = st.checkbox("Activar respuesta hablada", value=True)
 
 if modo == "Texto":
@@ -464,4 +452,5 @@ else:
             finally:
                 if temp_path and os.path.exists(temp_path):
                     os.remove(temp_path)
+
 
