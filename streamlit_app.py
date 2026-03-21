@@ -25,6 +25,8 @@ GENRES_URL = "https://api.themoviedb.org/3/genre/movie/list"
 DISCOVER_URL = "https://api.themoviedb.org/3/discover/movie"
 IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 SEARCH_URL = "https://api.themoviedb.org/3/search/movie"
+MOVIE_DETAILS_URL = "https://api.themoviedb.org/3/movie"
+YOUTUBE_BASE_URL = "https://www.youtube.com/watch?v="
 
 # Ejemplo region: eastus, westus2, brazilsouth, etc.
 
@@ -290,6 +292,7 @@ def mostrar_resultados(resultados, titulo_seccion):
     cols = st.columns(num_columnas)
 
     for i, pelicula in enumerate(resultados):
+        movie_id = pelicula.get("id")
         titulo = pelicula.get("title", "Sin título")
         fecha = pelicula.get("release_date", "Sin fecha")
         rating = pelicula.get("vote_average", "N/A")
@@ -310,6 +313,19 @@ def mostrar_resultados(resultados, titulo_seccion):
             with st.expander("Ver sinopsis"):
                 st.write(overview)
 
+            if st.button("▶ Ver tráiler", key=f"trailer_{movie_id}"):
+                try:
+                    videos = obtener_videos_pelicula(movie_id)
+                    trailer_url = obtener_trailer_youtube(videos)
+
+                    if trailer_url:
+                        st.markdown("---")
+                        st.subheader(f"🎬 Tráiler de {titulo}")
+                        st.video(trailer_url)
+                    else:
+                        st.warning(f"No encontré tráiler para {titulo}.")
+                except Exception as e:
+                    st.error(f"No pude obtener el tráiler: {e}")
 
 def construir_mensaje_hablado(tipo_busqueda, valor, resultados):
     cantidad = len(resultados)
@@ -320,6 +336,72 @@ def construir_mensaje_hablado(tipo_busqueda, valor, resultados):
         return f"Encontré {cantidad} resultados para {valor}."
     return "Ya tengo los resultados listos."
 
+def obtener_videos_pelicula(movie_id):
+    url = f"{MOVIE_DETAILS_URL}/{movie_id}/videos"
+
+    params_es = {
+        "api_key": TMDB_API_KEY,
+        "language": "es-MX"
+    }
+    response = requests.get(url, params=params_es, timeout=20)
+    response.raise_for_status()
+    data = response.json()
+    videos = data.get("results", [])
+
+    if videos:
+        return videos
+
+    params_default = {
+        "api_key": TMDB_API_KEY
+    }
+    response = requests.get(url, params=params_default, timeout=20)
+    response.raise_for_status()
+    data = response.json()
+    videos = data.get("results", [])
+
+    if videos:
+        return videos
+
+    params_en = {
+        "api_key": TMDB_API_KEY,
+        "language": "en-US"
+    }
+    response = requests.get(url, params=params_en, timeout=20)
+    response.raise_for_status()
+    data = response.json()
+    return data.get("results", [])
+
+def obtener_trailer_youtube(videos):
+    for video in videos:
+        if (
+            video.get("site") == "YouTube"
+            and video.get("type") == "Trailer"
+            and video.get("official") is True
+            and video.get("key")
+        ):
+            return f"{YOUTUBE_BASE_URL}{video['key']}"
+
+    for video in videos:
+        if (
+            video.get("site") == "YouTube"
+            and video.get("type") == "Trailer"
+            and video.get("key")
+        ):
+            return f"{YOUTUBE_BASE_URL}{video['key']}"
+
+    for video in videos:
+        if (
+            video.get("site") == "YouTube"
+            and video.get("type") == "Teaser"
+            and video.get("key")
+        ):
+            return f"{YOUTUBE_BASE_URL}{video['key']}"
+
+    for video in videos:
+        if video.get("site") == "YouTube" and video.get("key"):
+            return f"{YOUTUBE_BASE_URL}{video['key']}"
+
+    return None
 
 def procesar_consulta(frase_usuario, mapa_generos, mapa_generos_normalizado, hablar=False):
     tipo_busqueda, valor = detectar_genero_o_texto(
@@ -430,7 +512,5 @@ if audio_usuario is not None:
         finally:
             if temp_path and os.path.exists(temp_path):
                 os.remove(temp_path)
-
-
 
 
