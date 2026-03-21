@@ -25,6 +25,8 @@ GENRES_URL = "https://api.themoviedb.org/3/genre/movie/list"
 DISCOVER_URL = "https://api.themoviedb.org/3/discover/movie"
 IMAGE_BASE_URL = "https://image.tmdb.org/t/p/w500"
 SEARCH_URL = "https://api.themoviedb.org/3/search/movie"
+MOVIE_DETAILS_URL = "https://api.themoviedb.org/3/movie"
+YOUTUBE_BASE_URL = "https://www.youtube.com/watch?v="
 
 # Ejemplo region: eastus, westus2, brazilsouth, etc.
 
@@ -286,16 +288,18 @@ def mostrar_resultados(resultados, titulo_seccion):
         st.info("No se encontraron películas.")
         return
 
-    cols = st.columns(5)
+    num_columnas = 3
+    cols = st.columns(num_columnas)
 
     for i, pelicula in enumerate(resultados):
+        movie_id = pelicula.get("id")
         titulo = pelicula.get("title", "Sin título")
         fecha = pelicula.get("release_date", "Sin fecha")
         rating = pelicula.get("vote_average", "N/A")
         overview = pelicula.get("overview", "Sin sinopsis.")
         poster_path = pelicula.get("poster_path")
 
-        with cols[i % 5]:
+        with cols[i % num_columnas]:
             if poster_path:
                 poster_url = f"{IMAGE_BASE_URL}{poster_path}"
                 st.image(poster_url, use_container_width=True)
@@ -303,12 +307,24 @@ def mostrar_resultados(resultados, titulo_seccion):
                 st.write("Sin póster")
 
             st.markdown(f"**{titulo}**")
-            st.write(f"📅 {fecha}")
-            st.write(f"⭐ {rating}")
+            st.caption(f"📅 {fecha}")
+            st.caption(f"⭐ {rating}")
 
             with st.expander("Ver sinopsis"):
                 st.write(overview)
 
+            if st.button("▶ Ver tráiler", key=f"trailer_{movie_id}"):
+                try:
+                    videos = obtener_videos_pelicula(movie_id)
+                    trailer_url = obtener_trailer_youtube(videos)
+
+                    if trailer_url:
+                        st.markdown(f"### 🎬 Tráiler de {titulo}")
+                        st.video(trailer_url)
+                    else:
+                        st.warning(f"No encontré tráiler para {titulo}.")
+                except Exception as e:
+                    st.error(f"No pude obtener el tráiler: {e}")
 
 def construir_mensaje_hablado(tipo_busqueda, valor, resultados):
     cantidad = len(resultados)
@@ -319,6 +335,72 @@ def construir_mensaje_hablado(tipo_busqueda, valor, resultados):
         return f"Encontré {cantidad} resultados para {valor}."
     return "Ya tengo los resultados listos."
 
+def obtener_videos_pelicula(movie_id):
+    url = f"{MOVIE_DETAILS_URL}/{movie_id}/videos"
+
+    params_es = {
+        "api_key": TMDB_API_KEY,
+        "language": "es-MX"
+    }
+    response = requests.get(url, params=params_es, timeout=20)
+    response.raise_for_status()
+    data = response.json()
+    videos = data.get("results", [])
+
+    if videos:
+        return videos
+
+    params_default = {
+        "api_key": TMDB_API_KEY
+    }
+    response = requests.get(url, params=params_default, timeout=20)
+    response.raise_for_status()
+    data = response.json()
+    videos = data.get("results", [])
+
+    if videos:
+        return videos
+
+    params_en = {
+        "api_key": TMDB_API_KEY,
+        "language": "en-US"
+    }
+    response = requests.get(url, params=params_en, timeout=20)
+    response.raise_for_status()
+    data = response.json()
+    return data.get("results", [])
+
+def obtener_trailer_youtube(videos):
+    for video in videos:
+        if (
+            video.get("site") == "YouTube"
+            and video.get("type") == "Trailer"
+            and video.get("official") is True
+            and video.get("key")
+        ):
+            return f"{YOUTUBE_BASE_URL}{video['key']}"
+
+    for video in videos:
+        if (
+            video.get("site") == "YouTube"
+            and video.get("type") == "Trailer"
+            and video.get("key")
+        ):
+            return f"{YOUTUBE_BASE_URL}{video['key']}"
+
+    for video in videos:
+        if (
+            video.get("site") == "YouTube"
+            and video.get("type") == "Teaser"
+            and video.get("key")
+        ):
+            return f"{YOUTUBE_BASE_URL}{video['key']}"
+
+    for video in videos:
+        if video.get("site") == "YouTube" and video.get("key"):
+            return f"{YOUTUBE_BASE_URL}{video['key']}"
+
+    return None
 
 def procesar_consulta(frase_usuario, mapa_generos, mapa_generos_normalizado, hablar=False):
     tipo_busqueda, valor = detectar_genero_o_texto(
@@ -356,15 +438,16 @@ def procesar_consulta(frase_usuario, mapa_generos, mapa_generos_normalizado, hab
 # APP
 # ==========================================
 st.set_page_config(page_title="SpeechMovies con TMDb + Azure Speech", layout="wide")
-st.title("⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐ SpeechMovies con MS AZURE ⭐⭐⭐⭐⭐⭐⭐⭐⭐⭐")
+st.title("⭐ SpeechMovies ⭐")
 st.write("Bienvenido al sistema de búsqueda de películas usando la API de Microsoft Azure Speech Service")
 st.write(" ")
 st.write(" ")
 st.write("Instrucciones:")
-st.write("Para buscar una película puedes escribir o hablar frases como:")
+st.write("Para buscar una película puedes hablar frases como:")
 st.write("🟢 Busca películas de terror")
 st.write("🟢 Busca películas de dragon ball")
-st.write("🟢 Quiero ver películas románticas")
+st.write("🟢 Quiero ver películas de Terror")
+st.write("🟢 Toy Story")
 st.write(" ")
 st.write(" ")
 
@@ -383,71 +466,50 @@ mapa_generos_normalizado = {
     normalizar_texto(nombre): nombre for nombre in mapa_generos.keys()
 }
 
-modo = st.radio("Modo de entrada", ["Texto", "Micrófono"], horizontal=True)
 activar_respuesta_hablada = st.checkbox("Activar respuesta hablada", value=True)
 
-if modo == "Texto":
-    frase_usuario = st.text_input(
-        "Escribe tu solicitud",
-        placeholder="Ejemplo: busca películas de terror"
-    )
+if not AZURE_SPEECH_KEY or AZURE_SPEECH_KEY == "TU_AZURE_SPEECH_KEY_AQUI":
+    st.warning("Coloca tu Azure Speech key.")
+    st.stop()
 
-    if st.button("Buscar por texto"):
-        if not frase_usuario.strip():
-            st.warning("Escribe una frase.")
-        else:
-            try:
+if not AZURE_SPEECH_REGION or AZURE_SPEECH_REGION == "TU_AZURE_SPEECH_REGION_AQUI":
+    st.warning("Coloca tu Azure Speech region.")
+    st.stop()
+
+audio_usuario = st.audio_input(
+    "🎤 Habla para buscar películas",
+    sample_rate=16000
+)
+
+if audio_usuario is not None:
+    st.audio(audio_usuario)
+
+    if st.button("Procesar audio con Azure"):
+        temp_path = None
+
+        try:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
+                tmp_file.write(audio_usuario.read())
+                temp_path = tmp_file.name
+
+            texto_reconocido = reconocer_voz_desde_archivo_wav(temp_path)
+
+            if texto_reconocido:
+                st.success(f"Texto reconocido: {texto_reconocido}")
                 procesar_consulta(
-                    frase_usuario,
+                    texto_reconocido,
                     mapa_generos,
                     mapa_generos_normalizado,
                     hablar=activar_respuesta_hablada
                 )
-            except Exception as e:
-                st.error(f"Ocurrió un error: {e}")
+            else:
+                st.warning("No pude reconocer voz. Intenta grabar de nuevo.")
 
-else:
+        except Exception as e:
+            st.error(f"Error con Azure Speech: {e}")
 
-    if not AZURE_SPEECH_KEY or AZURE_SPEECH_KEY == "TU_AZURE_SPEECH_KEY_AQUI":
-        st.warning("Coloca tu Azure Speech key.")
-        st.stop()
+        finally:
+            if temp_path and os.path.exists(temp_path):
+                os.remove(temp_path)
 
-    if not AZURE_SPEECH_REGION or AZURE_SPEECH_REGION == "TU_AZURE_SPEECH_REGION_AQUI":
-        st.warning("Coloca tu Azure Speech region.")
-        st.stop()
 
-    audio_usuario = st.audio_input(
-        "🎤 Graba tu búsqueda por voz",
-        sample_rate=16000
-    )
-
-    if audio_usuario is not None:
-        st.audio(audio_usuario)
-
-        if st.button("Procesar audio con Azure"):
-            temp_path = None
-
-            try:
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
-                    tmp_file.write(audio_usuario.read())
-                    temp_path = tmp_file.name
-
-                texto_reconocido = reconocer_voz_desde_archivo_wav(temp_path)
-
-                if texto_reconocido:
-                    st.success(f"Texto reconocido: {texto_reconocido}")
-                    procesar_consulta(
-                        texto_reconocido,
-                        mapa_generos,
-                        mapa_generos_normalizado,
-                        hablar=activar_respuesta_hablada
-                    )
-                else:
-                    st.warning("No pude reconocer voz. Intenta grabar de nuevo.")
-
-            except Exception as e:
-                st.error(f"Error con Azure Speech: {e}")
-
-            finally:
-                if temp_path and os.path.exists(temp_path):
-                    os.remove(temp_path)
