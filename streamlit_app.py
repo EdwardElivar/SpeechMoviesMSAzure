@@ -321,6 +321,8 @@ def mostrar_resultados(resultados, titulo_seccion):
                     if trailer_url:
                         st.session_state.trailer_url = trailer_url
                         st.session_state.trailer_titulo = titulo
+                        st.session_state.mostrar_modal_trailer = True
+                        st.rerun()
                     else:
                         st.warning(f"No encontré tráiler para {titulo}.")
                 except Exception as e:
@@ -402,6 +404,20 @@ def obtener_trailer_youtube(videos):
 
     return None
 
+@st.dialog("🎬 Tráiler de la película")
+def mostrar_popup_trailer():
+    if st.session_state.trailer_titulo:
+        st.subheader(st.session_state.trailer_titulo)
+
+    if st.session_state.trailer_url:
+        st.video(st.session_state.trailer_url)
+    else:
+        st.warning("No hay tráiler disponible.")
+
+    if st.button("Cerrar"):
+        st.session_state.mostrar_modal_trailer = False
+        st.rerun()
+
 def procesar_consulta(frase_usuario, mapa_generos, mapa_generos_normalizado, hablar=False):
     tipo_busqueda, valor = detectar_genero_o_texto(
         frase_usuario,
@@ -455,6 +471,15 @@ st.write("🟢 Quiero ver películas de Terror")
 st.write("🟢 Toy Story")
 st.write(" ")
 st.write(" ")
+
+if "trailer_url" not in st.session_state:
+    st.session_state.trailer_url = None
+
+if "trailer_titulo" not in st.session_state:
+    st.session_state.trailer_titulo = ""
+
+if "mostrar_modal_trailer" not in st.session_state:
+    st.session_state.mostrar_modal_trailer = False
 
 if "saludo_reproducido" not in st.session_state:
     st.session_state.saludo_reproducido = False
@@ -538,7 +563,5 @@ if st.session_state.resultados_busqueda:
         st.session_state.titulo_busqueda
     )
 
-if st.session_state.trailer_url:
-    st.markdown("---")
-    st.subheader(f"🎬 Tráiler de {st.session_state.trailer_titulo}")
-    st.video(st.session_state.trailer_url)
+if st.session_state.mostrar_modal_trailer:
+    mostrar_popup_trailer()
