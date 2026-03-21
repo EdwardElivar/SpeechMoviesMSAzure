@@ -319,9 +319,8 @@ def mostrar_resultados(resultados, titulo_seccion):
                     trailer_url = obtener_trailer_youtube(videos)
 
                     if trailer_url:
-                        st.markdown("---")
-                        st.subheader(f"🎬 Tráiler de {titulo}")
-                        st.video(trailer_url)
+                        st.session_state.trailer_url = trailer_url
+                        st.session_state.trailer_titulo = titulo
                     else:
                         st.warning(f"No encontré tráiler para {titulo}.")
                 except Exception as e:
@@ -413,15 +412,21 @@ def procesar_consulta(frase_usuario, mapa_generos, mapa_generos_normalizado, hab
     if tipo_busqueda == "genero":
         genero_id = mapa_generos[valor]
         resultados = descubrir_peliculas_por_genero(genero_id)
-        mostrar_resultados(resultados, f"Resultados por género: {valor}")
+        st.session_state.resultados_busqueda = resultados
+        st.session_state.titulo_busqueda = f"Resultados por género: {valor}"
 
     elif tipo_busqueda == "texto":
         resultados = buscar_peliculas_por_texto(valor)
-        mostrar_resultados(resultados, f"Resultados por nombre o franquicia: {valor}")
+        st.session_state.resultados_busqueda = resultados
+        st.session_state.titulo_busqueda = f"Resultados por nombre o franquicia: {valor}"
 
     else:
         st.error("No pude interpretar tu búsqueda.")
         return
+
+    # limpiar tráiler anterior cuando haces una nueva búsqueda
+    st.session_state.trailer_url = None
+    st.session_state.trailer_titulo = ""
 
     if hablar:
         try:
@@ -433,7 +438,6 @@ def procesar_consulta(frase_usuario, mapa_generos, mapa_generos_normalizado, hab
 
         except Exception as e:
             st.error(f"No pude generar la respuesta hablada: {e}")
-
 
 # ==========================================
 # APP
@@ -451,6 +455,21 @@ st.write("🟢 Quiero ver películas de Terror")
 st.write("🟢 Toy Story")
 st.write(" ")
 st.write(" ")
+
+if "saludo_reproducido" not in st.session_state:
+    st.session_state.saludo_reproducido = False
+
+if "resultados_busqueda" not in st.session_state:
+    st.session_state.resultados_busqueda = []
+
+if "titulo_busqueda" not in st.session_state:
+    st.session_state.titulo_busqueda = ""
+
+if "trailer_url" not in st.session_state:
+    st.session_state.trailer_url = None
+
+if "trailer_titulo" not in st.session_state:
+    st.session_state.trailer_titulo = ""
 
 if not TMDB_API_KEY or TMDB_API_KEY == "TU_TMDB_API_KEY_AQUI":
     st.warning("Coloca tu API key de TMDb.")
@@ -513,4 +532,13 @@ if audio_usuario is not None:
             if temp_path and os.path.exists(temp_path):
                 os.remove(temp_path)
 
+if st.session_state.resultados_busqueda:
+    mostrar_resultados(
+        st.session_state.resultados_busqueda,
+        st.session_state.titulo_busqueda
+    )
 
+if st.session_state.trailer_url:
+    st.markdown("---")
+    st.subheader(f"🎬 Tráiler de {st.session_state.trailer_titulo}")
+    st.video(st.session_state.trailer_url)
